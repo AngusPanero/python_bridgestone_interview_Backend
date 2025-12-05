@@ -1,14 +1,22 @@
-from fastapi import Request, APIRouter, Depends
+from fastapi import Request, APIRouter, HTTPException, Depends
 from app.schemas.user_schema import UserCreate, UserResponse, Token
 from app.controllers.user_controller import register_user
 from app.middlewares.auth_middleware import verify_token
 from app.db.token_blacklist import revoked_tokens
+from app.db.mongo import users_collection
 from app.core.security import create_access_token
 
 router = APIRouter(prefix="/users", tags=["Users"])
 
 @router.post("/register", response_model=UserResponse)
 async def register(user: UserCreate):
+    existing_user = await users_collection.find_one({"email": user.email})
+
+    if existing_user:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Ya existe un usuario registrado con el email: {user.email}"    
+        )
     new_user = await register_user(user)
     return new_user
 
